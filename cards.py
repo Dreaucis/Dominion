@@ -102,7 +102,9 @@ class Cellar(Action):
 
     def resolve(self, state: State):
         num_cards = int(input('How many cards do you wish to discard?'))
-        num_discarded = state.current_player.prompt_discard(num_cards)
+        num_cards_in_hand = sum(state.current_player.hand.values()) - 1  # Number of cards before discard
+        state.current_player.prompt_discard(num_cards)
+        num_discarded = num_cards_in_hand - sum(state.current_player.hand.values()) - 1
         state.current_player.draw(num_discarded)
 
 
@@ -112,7 +114,7 @@ class Merchant(Action):
     def resolve(self, state: State):
         state.current_player.draw(1)
         state.current_player.actions += 1
-        state.current_player.effects.append(Effect(BUY_PHASE, self.effect))
+        state.current_player.delayed_card_effects.append(Effect(BUY_PHASE, self.effect))
 
     @staticmethod
     def effect(state: State):
@@ -145,6 +147,8 @@ class Mine(Action):
 
     def resolve(self, state: State):
         player = state.current_player
-        trashable_cards = [card for card in player.hand if card.tag == TREASURE]
-
-        state.current_player.prompt_trash()  # TODO: This should return the trashed cards
+        prior_trash = state.trash.copy()
+        trashable_cards = set(card for card in player.hand if card.tag == TREASURE)
+        state.current_player.prompt_trash(state, 1, trashable_cards)  # TODO: This should return the trashed cards
+        trashed_card = list(state.trash - prior_trash)[0]
+        # TODO: implement the more flexible gain prompt (from/to) before continuing

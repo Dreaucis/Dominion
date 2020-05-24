@@ -2,6 +2,7 @@ from player import Player, ACTION_PHASE, BUY_PHASE
 from state import State
 from tags import ACTION, TREASURE, VICTORY, ATTACK, REACTION
 from abc import ABC, abstractmethod
+from collections import Counter
 
 
 class Card(ABC):
@@ -41,15 +42,30 @@ class Card(ABC):
         # TODO: I don't like this since not all children use num_players.
         pass
 
+    @abstractmethod
+    def resolve(self, state: State):
+        pass
+
     def is_playable(self, state: State) -> bool:
         return any(getattr(x, '_is_playable')(state) for x in self.__class__.__mro__ if hasattr(x, '_is_playable'))
+
+    def play(self, state: State):
+        if self.is_playable(state):
+            # Remove card from hand
+            state.current_player.hand[self] -= 1
+            state.current_player.hand += Counter()
+
+            # Add card to play area
+            state.current_player.play_area.append(self)
+
+            # Resolve card effect
+            self.resolve(state)
 
     def is_supply_empty(self) -> bool:
         return bool(self.supply_pile_size)
 
     def gain(self):
         self.supply_pile_size = self.supply_pile_size - 1
-
 
     @staticmethod
     @abstractmethod
@@ -75,6 +91,9 @@ class Victory(Card):
     def get_starting_supply_pile_size(self, num_players: int) -> int:
         return 8 if num_players == 2 else 12
 
+    def resolve(self, state: State):
+        pass
+
 
 class Treasure(Card):
     """
@@ -91,7 +110,7 @@ class Treasure(Card):
     def _is_playable(state: State) -> bool:
         return state == BUY_PHASE
 
-    def play(self, state: State):
+    def resolve(self, state: State):
         state.current_player.money += self.worth
 
 

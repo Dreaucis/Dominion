@@ -5,6 +5,7 @@ from abstract_cards import Card, Victory
 
 # TODO: Try making list of cards into deques
 from effects import Effect
+from state import State
 
 
 class Player:
@@ -21,7 +22,7 @@ class Player:
         self.actions: int = 1
 
         # Effects
-        self.effects: typing.List[Effect] = []
+        self.delayed_card_effects: typing.List[Effect] = []
 
     @property
     def deck(self) -> typing.List[Card]:
@@ -31,12 +32,12 @@ class Player:
     def victory_points(self) -> int:
         return sum(card.victory_points for card in self.deck if isinstance(card, Victory))
 
-    def remove_effect(self, effect):
-        self.effects.remove(effect)
+    def remove_card_effect(self, effect):
+        self.delayed_card_effects.remove(effect)
 
-    def resolve_effects(self, phase):
-        for effect in self.effects:
-            effect(phase)
+    def resolve_card_effects(self, state: State):
+        for effect in self.delayed_card_effects:
+            effect.resolve(state)
 
     def draw(self, num_cards: int):
         for i in range(num_cards):
@@ -52,18 +53,17 @@ class Player:
             # Draw card from draw pile to hand
             self.hand.update([self.draw_pile.pop()])
 
-    def prompt_discard(self, num_cards: int = None) -> int:
+    def prompt_discard(self, num_discards: int = 0) -> int:
         # TODO: Refactor to allow for flexible discarding (see Cellar). Meybe a force discard and a prompt discard?
         """
         Prompts the player to discard. Returns the number of cards discarded.
-        :param num_cards: Number of cards to be discarded
+        :param num_discards: Number of cards to be discarded
         :return: Number of cards discarded
         """
-        remaining_discards = num_cards
-        while self.hand and remaining_discards > 0:
+        while self.hand and num_discards > 0:
             sorted_hand = sorted(list(self.hand), key=card_sort)
             card_name = input(
-                f'Discard {remaining_discards} cards'
+                f'Discard {num_discards} cards'
                 f'Hand: {sorted_hand}'
             )
             # If the prompted card is in hand, discard it
@@ -72,18 +72,39 @@ class Player:
                 self.hand[card] -= 1
                 self.hand += Counter()  # Remove 0 and negative counts
                 self.discard_pile.append(card)
-                remaining_discards -= 1
+                num_discards -= 1
                 print(f'Discarded {card.name}')
             else:
                 print(f'{card.name} is not in hand')
-        return num_cards - remaining_discards
 
-    def prompt_trash(self, cards: typing.List[Card]):
-        # TODO: Do a "prompt_select_card" that takes in a set of cards.
-        pass
+    def prompt_trash(self, state:State, num_trashes: int = 0, trashable_cards: typing.Set[Card] = None):
+        # TODO: Do a "prompt_select_card" that takes in a set of cards. High priority.
 
-    def prompt_card_interaction(self, interaction: str, cards: typing.List[Card]):
-        pass
+        trashable_cards_in_hand = trashable_cards & set(self.hand.elements())
+        while trashable_cards_in_hand  and num_trashes > 0:
+            sorted_hand = sorted(list(self.hand), key=card_sort)
+            card_name = input(
+                f'Trash {num_trashes} cards'
+                f'Hand: {sorted_hand}'
+            )
+            # If the prompted card is in hand, trash it
+            card = next((card for card in self.hand if card.name == card_name), None)
+            if card:
+                # Remove card from hand
+                self.hand[card] -= 1
+                self.hand += Counter()  # Remove 0 and negative counts
+
+                # Add card to trash
+                state.trash.update([card])
+
+                num_trashes -= 1
+                print(f'Trashed {card.name}')
+                trashable_cards_in_hand = trashable_cards & set(self.hand.elements())
+            else:
+                print(f'{card.name} is not in hand')
+
+    def prompt_card_interaction(self, interaction: str, num_interactions: int, available_cards: typing.List[Card]):
+        # TODO: make this a generic thing, from X to Y. Forced/non-forced
 
     def prompt_gain(self, worth: int, supply: typing.List[Card]):
         # TODO: Maybe prompt_gain should wrap prompt_buy?
@@ -95,7 +116,7 @@ class Player:
             while not has_gained:
                 sorted_available = sorted(available_cards, key=lambda x: x.price)
                 card_name = input(
-                    f'Discard a card from'
+                    f'Gain a card from'
                     f'Supply: {sorted_available}'
                 )
                 card = next((card for card in available_cards if card.name == card_name), None)
