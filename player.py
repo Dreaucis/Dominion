@@ -7,6 +7,8 @@ from abstract_cards import Card, Victory
 from effects import Effect
 from state import State
 
+class CardNotInHand(Exception):
+    """ Raised when trying to remove card from hand that is not in the hand """
 
 class Player:
     def __init__(self):
@@ -32,7 +34,17 @@ class Player:
     def victory_points(self) -> int:
         return sum(card.victory_points for card in self.deck if isinstance(card, Victory))
 
-    def remove_card_effect(self, effect):
+    def add_to_hand(self, card: Card):
+        self.hand[card] += 1
+
+    def remove_from_hand(self, card: Card):
+        if card not in self.hand:
+            raise CardNotInHand
+        self.hand[card] -= 1
+        self.hand += Counter()
+        return card
+
+    def remove_card_effect(self, effect: Effect):
         self.delayed_card_effects.remove(effect)
 
     def resolve_card_effects(self, state: State):
@@ -103,8 +115,13 @@ class Player:
             else:
                 print(f'{card.name} is not in hand')
 
-    def prompt_card_interaction(self, interaction: str, num_interactions: int, available_cards: typing.List[Card]):
-        # TODO: make this a generic thing, from X to Y. Forced/non-forced
+    def prompt_select_card(self, cards: typing.List[Card]):
+        if cards:
+            cards = sorted(cards, key=card_sort)
+            card_name = input(
+                f'Select a card from {cards}'
+            )
+            return next((card for card in self.hand if card.name == card_name), None)
 
     def prompt_gain(self, worth: int, supply: typing.List[Card]):
         # TODO: Maybe prompt_gain should wrap prompt_buy?
@@ -126,5 +143,5 @@ class Player:
                     has_gained = True
 
 
-def card_sort(card_count_tuple: typing.Tuple[Card, int]) -> typing.List[str, str]:
-    return [card_count_tuple[0].tag, card_count_tuple[0].name]
+def card_sort(cards: Card) -> typing.List[str]:
+    return [cards.tag, cards.name]

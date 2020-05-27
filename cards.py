@@ -1,4 +1,4 @@
-from abstract_cards import Action, Victory, Treasure, Attack
+from abstract_cards import Action, Victory, Treasure, Attack, Reaction
 from effects import Effect
 from tags import TREASURE
 from state import State, ACTION_PHASE, BUY_PHASE
@@ -147,8 +147,56 @@ class Mine(Action):
 
     def resolve(self, state: State):
         player = state.current_player
-        prior_trash = state.trash.copy()
-        trashable_cards = set(card for card in player.hand if card.tag == TREASURE)
-        state.current_player.prompt_trash(state, 1, trashable_cards)  # TODO: This should return the trashed cards
-        trashed_card = list(state.trash - prior_trash)[0]
-        # TODO: implement the more flexible gain prompt (from/to) before continuing
+        # Can only trash treasures in hand
+        trashable_cards = [card for card in player.hand if card.tag == TREASURE]
+        if trashable_cards:
+            # Prompt for card to be gained
+            trashed_card = player.prompt_select_card(trashable_cards)
+
+            # Move card from hand to trash
+            state.add_to_trash(player.remove_from_hand(trashed_card))
+
+            # Any treasure card that worth less than or equal to the price plus 3 of the trashed card can be gained
+            gainable_cards = [
+                card for card in state.supply if
+                card.tag == TREASURE and card.price <= trashed_card.price + 3 and not card.is_supply_empty()
+            ]
+
+            # If there are any possible gainable cards, prompt player to select
+            if gainable_cards:
+                gained_card = player.prompt_select_card(gainable_cards)
+
+                # Move card from supply to player hand
+                player.add_to_hand(state.remove_from_supply(gained_card))
+
+
+class Moat(Action, Reaction):
+    pass
+
+
+class Remodel(Action):
+    price = 4
+
+    def resolve(self, state: State):
+        player = state.current_player
+
+        # May trash any card in hand
+        trashable_cards = list(player.hand)
+        if trashable_cards:
+            # Prompt for card to be gained
+            trashed_card = player.prompt_select_card(trashable_cards)
+
+            # Move card from hand to trash
+            state.add_to_trash(player.remove_from_hand(trashed_card))
+
+            # Any card in supply worth less than or equal to the price plus 2 of the trashed card can be gained
+            gainable_cards = [
+                card for card in state.supply if card.price <= trashed_card.price + 2 and not card.is_supply_empty()
+            ]
+
+            # If there are any possible gainable cards, prompt player to select
+            if gainable_cards:
+                gained_card = player.prompt_select_card(gainable_cards)
+
+                # Move card from supply to player hand
+                player.add_to_hand(state.remove_from_supply(gained_card))

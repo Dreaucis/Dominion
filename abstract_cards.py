@@ -66,6 +66,7 @@ class Card(ABC):
 
     def gain(self):
         self.supply_pile_size = self.supply_pile_size - 1
+        return self
 
     @staticmethod
     @abstractmethod
