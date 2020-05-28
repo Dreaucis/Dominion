@@ -1,5 +1,7 @@
 from abstract_cards import Action, Victory, Treasure, Attack, Reaction
+from typing import List
 from effects import Effect
+from player import Player
 from tags import TREASURE
 from state import State, ACTION_PHASE, BUY_PHASE
 
@@ -82,9 +84,12 @@ class Village(Action):
 class Militia(Action, Attack):
     price = 4
 
+    # TODO: male the attack a method that targets one player at a time? How to check for reaction?
     def resolve(self, state: State):
         state.current_player.money += 2
-        for player in state.players:
+
+    def attack(self, attacked_players: List[Player]):
+        for player in attacked_players:
             # If other players have more than 3 cards in hand force them to discard
             if len(player.hand) > 3:
                 player.prompt_discard(len(player.hand) - 3)
@@ -171,7 +176,13 @@ class Mine(Action):
 
 
 class Moat(Action, Reaction):
-    pass
+    price = 2
+
+    def resolve(self, state: State):
+        state.current_player.draw(2)
+
+    def react(self, reacting_players: Player, attacked_players: List[Player]):
+        attacked_players.remove(reacting_players)
 
 
 class Remodel(Action):

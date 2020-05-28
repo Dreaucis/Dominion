@@ -1,14 +1,16 @@
 from random import shuffle
 import typing
 from collections import Counter
-from abstract_cards import Card, Victory
+from abstract_cards import Card, Victory, Attack, Reaction
 
 # TODO: Try making list of cards into deques
 from effects import Effect
 from state import State
 
+
 class CardNotInHand(Exception):
     """ Raised when trying to remove card from hand that is not in the hand """
+
 
 class Player:
     def __init__(self):
@@ -33,6 +35,33 @@ class Player:
     @property
     def victory_points(self) -> int:
         return sum(card.victory_points for card in self.deck if isinstance(card, Victory))
+
+    def play(self, card: Card, state: State):
+        if card.is_playable(state):
+            # Remove card from hand
+            self.remove_from_hand(card)
+
+            # Add card to play area
+            self.play_area.append(card)
+
+            # Resolve card effect
+            card.resolve(state)
+
+            # Resolve attack and reacts
+            if isinstance(card, Attack):
+                # Get targeted players
+                attacked_players = [player for player in state.players if player != self]
+
+                # Resolve any reactions to the attack
+                for player in attacked_players:
+                    reaction_cards = [card for card in list(player.hand) if isinstance(card, Reaction)]
+                    for reaction_card in reaction_cards:
+                        has_reacted = player.prompt_reaction(reaction_card)
+                        if has_reacted:
+                            reaction_card.react(player, attacked_players)
+
+                # Resolve attack
+                card.attack(attacked_players)
 
     def add_to_hand(self, card: Card):
         self.hand[card] += 1
@@ -65,7 +94,12 @@ class Player:
             # Draw card from draw pile to hand
             self.hand.update([self.draw_pile.pop()])
 
-    def prompt_discard(self, num_discards: int = 0) -> int:
+    @staticmethod
+    def prompt_reaction(card: Card) -> bool:
+        react = input(f'React with {str(card)}? Y or N')
+        return react == 'Y'
+
+    def prompt_discard(self, num_discards: int = 0):
         # TODO: Refactor to allow for flexible discarding (see Cellar). Meybe a force discard and a prompt discard?
         """
         Prompts the player to discard. Returns the number of cards discarded.
@@ -89,11 +123,11 @@ class Player:
             else:
                 print(f'{card.name} is not in hand')
 
-    def prompt_trash(self, state:State, num_trashes: int = 0, trashable_cards: typing.Set[Card] = None):
+    def prompt_trash(self, state: State, num_trashes: int = 0, trashable_cards: typing.Set[Card] = None):
         # TODO: Do a "prompt_select_card" that takes in a set of cards. High priority.
 
         trashable_cards_in_hand = trashable_cards & set(self.hand.elements())
-        while trashable_cards_in_hand  and num_trashes > 0:
+        while trashable_cards_in_hand and num_trashes > 0:
             sorted_hand = sorted(list(self.hand), key=card_sort)
             card_name = input(
                 f'Trash {num_trashes} cards'

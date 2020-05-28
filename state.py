@@ -26,6 +26,7 @@ class State:
         self.players = [Player() for _ in range(num_players)]
         self.supply = supply
         self.trash = Counter()
+        self.attacked_players: List = None
 
     def add_to_trash(self, card: Card):
         self.trash[card] += 1

@@ -1,3 +1,5 @@
+from typing import List
+
 from player import Player, ACTION_PHASE, BUY_PHASE
 from state import State
 from tags import ACTION, TREASURE, VICTORY, ATTACK, REACTION
@@ -48,18 +50,6 @@ class Card(ABC):
 
     def is_playable(self, state: State) -> bool:
         return any(getattr(x, '_is_playable')(state) for x in self.__class__.__mro__ if hasattr(x, '_is_playable'))
-
-    def play(self, state: State):
-        if self.is_playable(state):
-            # Remove card from hand
-            state.current_player.hand[self] -= 1
-            state.current_player.hand += Counter()
-
-            # Add card to play area
-            state.current_player.play_area.append(self)
-
-            # Resolve card effect
-            self.resolve(state)
 
     def is_supply_empty(self) -> bool:
         return bool(self.supply_pile_size)
@@ -133,18 +123,14 @@ class Action(Card):
         return 10
 
 
-class Attack(Card):
+class Attack(Card, ABC):
     """
     Abstract class for Attack cards
     """
     tag = ATTACK
 
-    @staticmethod
-    def _is_playable(state: State) -> bool:
-        return False
-
     @abstractmethod
-    def resolve(self, state: State):
+    def attack(self, attacked_players: List[Player]):
         pass
 
 
@@ -156,9 +142,6 @@ class Reaction(Card):
     tag = REACTION
 
     @abstractmethod
-    def react(self):
+    def react(self, reacting_player: Player, targeted_players: List[Player]):
         pass
 
-    @staticmethod
-    def _is_playable(state: State) -> bool:
-        return False
