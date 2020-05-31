@@ -5,4 +5,9 @@ ATTACK = 'attack'
 REACTION = 'reaction'
 TREASURE = 'treasure'
 VICTORY = 'victory'
+CURSE = 'curse'
+
+# Phases
+ACTION_PHASE = 'ACTION'
+BUY_PHASE = 'BUY'
 

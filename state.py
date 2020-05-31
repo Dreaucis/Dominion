@@ -3,9 +3,7 @@ from collections import Counter
 
 from abstract_cards import Card
 from player import Player
-
-ACTION_PHASE = 'ACTION'
-BUY_PHASE = 'BUY'
+from recommended_kingdoms import FIRST_GAME, initialize_kingdom
 
 
 class SupplyPileIsEmpty(Exception):
@@ -26,7 +24,7 @@ class State:
         self.players = [Player() for _ in range(num_players)]
         self.supply = supply
         self.trash = Counter()
-        self.attacked_players: List = None
+        self.attacked_players: List = []
 
     def add_to_trash(self, card: Card):
         self.trash[card] += 1
@@ -45,3 +43,11 @@ class State:
         return card
 
 # TODO: in Game loop , resolve effects at start of and end of buy / action
+
+def main():
+    num_players = 2
+    supply = initialize_kingdom(FIRST_GAME, num_players)
+    state = State(num_players, supply)
+
+if __name__ == '__main__':
+    main()

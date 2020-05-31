@@ -5,8 +5,6 @@ from abstract_cards import Card, Victory, Attack, Reaction
 
 # TODO: Try making list of cards into deques
 from effects import Effect
-from state import State
-
 
 class CardNotInHand(Exception):
     """ Raised when trying to remove card from hand that is not in the hand """
@@ -36,7 +34,7 @@ class Player:
     def victory_points(self) -> int:
         return sum(card.victory_points for card in self.deck if isinstance(card, Victory))
 
-    def play(self, card: Card, state: State):
+    def play(self, card: Card, state: 'State'):
         if card.is_playable(state):
             # Remove card from hand
             self.remove_from_hand(card)
@@ -76,7 +74,7 @@ class Player:
     def remove_card_effect(self, effect: Effect):
         self.delayed_card_effects.remove(effect)
 
-    def resolve_card_effects(self, state: State):
+    def resolve_card_effects(self, state: 'State'):
         for effect in self.delayed_card_effects:
             effect.resolve(state)
 
@@ -123,7 +121,7 @@ class Player:
             else:
                 print(f'{card.name} is not in hand')
 
-    def prompt_trash(self, state: State, num_trashes: int = 0, trashable_cards: typing.Set[Card] = None):
+    def prompt_trash(self, state: 'State', num_trashes: int = 0, trashable_cards: typing.Set[Card] = None):
         # TODO: Do a "prompt_select_card" that takes in a set of cards. High priority.
 
         trashable_cards_in_hand = trashable_cards & set(self.hand.elements())

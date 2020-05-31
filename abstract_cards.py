@@ -1,10 +1,7 @@
 from typing import List
 
-from player import Player, ACTION_PHASE, BUY_PHASE
-from state import State
-from tags import ACTION, TREASURE, VICTORY, ATTACK, REACTION
+from constants import ACTION, TREASURE, VICTORY, ATTACK, REACTION, ACTION_PHASE, BUY_PHASE
 from abc import ABC, abstractmethod
-from collections import Counter
 
 
 class Card(ABC):
@@ -45,10 +42,10 @@ class Card(ABC):
         pass
 
     @abstractmethod
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         pass
 
-    def is_playable(self, state: State) -> bool:
+    def is_playable(self, state: 'State') -> bool:
         return any(getattr(x, '_is_playable')(state) for x in self.__class__.__mro__ if hasattr(x, '_is_playable'))
 
     def is_supply_empty(self) -> bool:
@@ -60,7 +57,7 @@ class Card(ABC):
 
     @staticmethod
     @abstractmethod
-    def _is_playable(state: State) -> bool:
+    def _is_playable(state: 'State') -> bool:
         pass
 
 
@@ -76,13 +73,13 @@ class Victory(Card):
         pass
 
     @staticmethod
-    def _is_playable(state: State) -> bool:
+    def _is_playable(state: 'State') -> bool:
         return False
 
     def get_starting_supply_pile_size(self, num_players: int) -> int:
         return 8 if num_players == 2 else 12
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         pass
 
 
@@ -98,10 +95,10 @@ class Treasure(Card):
         pass
 
     @staticmethod
-    def _is_playable(state: State) -> bool:
+    def _is_playable(state: 'State') -> bool:
         return state == BUY_PHASE
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.money += self.worth
 
 
@@ -112,11 +109,11 @@ class Action(Card):
     tag = ACTION
 
     @staticmethod
-    def _is_playable(state: State) -> bool:
+    def _is_playable(state: 'State') -> bool:
         return state.phase == ACTION_PHASE and state.current_player.actions > 0
 
     @abstractmethod
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         pass
 
     def get_starting_supply_pile_size(self, _) -> int:
@@ -130,7 +127,7 @@ class Attack(Card, ABC):
     tag = ATTACK
 
     @abstractmethod
-    def attack(self, attacked_players: List[Player]):
+    def attack(self, attacked_players: List['Player']):
         pass
 
 
@@ -142,6 +139,5 @@ class Reaction(Card):
     tag = REACTION
 
     @abstractmethod
-    def react(self, reacting_player: Player, targeted_players: List[Player]):
+    def react(self, reacting_player: 'Player', targeted_players: List['Player']):
         pass
-

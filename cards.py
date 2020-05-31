@@ -1,9 +1,8 @@
-from abstract_cards import Action, Victory, Treasure, Attack, Reaction
+from abstract_cards import Action, Victory, Treasure, Attack, Reaction, Card
 from typing import List
 from effects import Effect
 from player import Player
-from tags import TREASURE
-from state import State, ACTION_PHASE, BUY_PHASE
+from constants import TREASURE, CURSE
 
 
 # Victory cards
@@ -32,9 +31,17 @@ class Province(Victory):
             return 18
 
 
-class Curse(Victory):
+class Curse(Card):
+    tag = CURSE
     price = 0
     victory_points = -1
+
+    @staticmethod
+    def _is_playable(state: 'State') -> bool:
+        return False
+
+    def resolve(self, state: 'State'):
+        pass
 
     def get_starting_supply_pile_size(self, num_players):
         return min(60, (num_players - 1) * 10)
@@ -69,14 +76,14 @@ class Gold(Treasure):
 class Smithy(Action):
     price = 4
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.draw(3)
 
 
 class Village(Action):
     price = 3
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.draw(1)
         state.current_player.actions += 2
 
@@ -85,7 +92,7 @@ class Militia(Action, Attack):
     price = 4
 
     # TODO: male the attack a method that targets one player at a time? How to check for reaction?
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.money += 2
 
     def attack(self, attacked_players: List[Player]):
@@ -98,14 +105,14 @@ class Militia(Action, Attack):
 class Workshop(Action):
     price = 3
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.prompt_gain(4, state.supply)
 
 
 class Cellar(Action):
     price = 2
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         num_cards = int(input('How many cards do you wish to discard?'))
         num_cards_in_hand = sum(state.current_player.hand.values()) - 1  # Number of cards before discard
         state.current_player.prompt_discard(num_cards)
@@ -116,13 +123,13 @@ class Cellar(Action):
 class Merchant(Action):
     price = 3
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.draw(1)
         state.current_player.actions += 1
         state.current_player.delayed_card_effects.append(Effect(BUY_PHASE, self.effect))
 
     @staticmethod
-    def effect(state: State):
+    def effect(state: 'State'):
         player = state.current_player
         # if there are any silver in the play area, add one to the players money count
         if any(isinstance(card, Silver) for card in player.play_area):
@@ -132,7 +139,7 @@ class Merchant(Action):
 class Laboratory(Action):
     price = 5
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.draw(2)
         state.current_player.actions += 1
 
@@ -140,7 +147,7 @@ class Laboratory(Action):
 class Market(Action):
     price = 5
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.draw(1)
         state.current_player.actions += 1
         state.current_player.buys += 1
@@ -150,7 +157,7 @@ class Market(Action):
 class Mine(Action):
     price = 5
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         player = state.current_player
         # Can only trash treasures in hand
         trashable_cards = [card for card in player.hand if card.tag == TREASURE]
@@ -178,7 +185,7 @@ class Mine(Action):
 class Moat(Action, Reaction):
     price = 2
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         state.current_player.draw(2)
 
     def react(self, reacting_players: Player, attacked_players: List[Player]):
@@ -188,7 +195,7 @@ class Moat(Action, Reaction):
 class Remodel(Action):
     price = 4
 
-    def resolve(self, state: State):
+    def resolve(self, state: 'State'):
         player = state.current_player
 
         # May trash any card in hand
