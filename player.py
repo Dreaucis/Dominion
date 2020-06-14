@@ -1,17 +1,20 @@
-from random import shuffle
+from random import sample
 import typing
 from collections import Counter
-from abstract_cards import Card, Victory, Attack, Reaction
+from abstract_cards import Card, Victory, Attack, Reaction, Action
 
 # TODO: Try making list of cards into deques
 from effects import Effect
+
 
 class CardNotInHand(Exception):
     """ Raised when trying to remove card from hand that is not in the hand """
 
 
 class Player:
-    def __init__(self):
+    def __init__(self, name):
+        self.name = name
+
         # Card areas
         self.draw_pile: typing.List[Card] = []
         self.hand: typing.Counter[Card, int] = Counter()
@@ -32,7 +35,7 @@ class Player:
 
     @property
     def victory_points(self) -> int:
-        return sum(card.victory_points for card in self.deck if isinstance(card, Victory))
+        return sum(card.victory_points for card in self.deck if hasattr(card, 'victory_points'))
 
     def play(self, card: Card, state: 'State'):
         if card.is_playable(state):
@@ -61,8 +64,21 @@ class Player:
                 # Resolve attack
                 card.attack(attacked_players)
 
+            # Reduce number of actions
+            self.actions -= 1
+
+    def has_playable_cards_in_hand(self, state):
+        return any(card.is_playable(state) for card in self.hand)
+
     def add_to_hand(self, card: Card):
         self.hand[card] += 1
+
+    def add_to_discard(self, card: Card):
+        self.discard_pile.append(card)
+
+    def discard_hand(self):
+        for card in list(self.hand.elements()):
+            self.discard_pile.append(self.remove_from_hand(card))
 
     def remove_from_hand(self, card: Card):
         if card not in self.hand:
@@ -86,7 +102,7 @@ class Player:
                 if not self.discard_pile:
                     break
                 # Shuffle the discard pile under the draw pile and set the discard pile as empty
-                self.draw_pile = shuffle(self.discard_pile) + self.draw_pile
+                self.draw_pile = sample(self.discard_pile, len(self.discard_pile)) + self.draw_pile
                 self.discard_pile = []
 
             # Draw card from draw pile to hand
@@ -153,7 +169,12 @@ class Player:
             card_name = input(
                 f'Select a card from {cards}'
             )
-            return next((card for card in self.hand if card.name == card_name), None)
+            return next((card for card in cards if card.name == card_name), None)
+
+    def buy(self, card: Card, state: 'State'):
+        self.add_to_discard(state.remove_from_supply(card))
+        self.buys -= 1
+
 
     def prompt_gain(self, worth: int, supply: typing.List[Card]):
         # TODO: Maybe prompt_gain should wrap prompt_buy?
@@ -173,6 +194,11 @@ class Player:
                 if card:
                     self.discard_pile.append(card.gain())
                     has_gained = True
+
+    def reset_turn_attributes(self):
+        self.money: int = 0
+        self.buys: int = 1
+        self.actions: int = 1
 
 
 def card_sort(cards: Card) -> typing.List[str]:

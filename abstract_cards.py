@@ -49,7 +49,7 @@ class Card(ABC):
         return any(getattr(x, '_is_playable')(state) for x in self.__class__.__mro__ if hasattr(x, '_is_playable'))
 
     def is_supply_empty(self) -> bool:
-        return bool(self.supply_pile_size)
+        return not bool(self.supply_pile_size)
 
     def gain(self):
         self.supply_pile_size = self.supply_pile_size - 1
@@ -96,7 +96,7 @@ class Treasure(Card):
 
     @staticmethod
     def _is_playable(state: 'State') -> bool:
-        return state == BUY_PHASE
+        return state.phase == BUY_PHASE
 
     def resolve(self, state: 'State'):
         state.current_player.money += self.worth
