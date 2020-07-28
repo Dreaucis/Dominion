@@ -1,6 +1,6 @@
 from typing import List
 
-from constants import ACTION, TREASURE, VICTORY, ATTACK, REACTION, ACTION_PHASE, BUY_PHASE
+from constants import ACTION, TREASURE, VICTORY, ATTACK, REACTION, ACTION_PHASE, BUY_PHASE, TREASURE_PHASE
 from abc import ABC, abstractmethod
 
 
@@ -96,7 +96,7 @@ class Treasure(Card):
 
     @staticmethod
     def _is_playable(state: 'State') -> bool:
-        return state.phase == BUY_PHASE
+        return state.phase == TREASURE_PHASE
 
     def resolve(self, state: 'State'):
         state.current_player.money += self.worth
@@ -127,7 +127,7 @@ class Attack(Card, ABC):
     tag = ATTACK
 
     @abstractmethod
-    def attack(self, attacked_players: List['Player']):
+    def attack(self, attacked_players: List['Player'], state: 'State'):
         pass
 
 
@@ -139,5 +139,5 @@ class Reaction(Card):
     tag = REACTION
 
     @abstractmethod
-    def react(self, reacting_player: 'Player', targeted_players: List['Player']):
+    def react(self, reacting_player: 'Player', targeted_players: List['Player'], state: 'State'):
         pass

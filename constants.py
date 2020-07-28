@@ -9,5 +9,6 @@ CURSE = 'curse'
 
 # Phases
 ACTION_PHASE = 'ACTION'
+TREASURE_PHASE = 'TREASURE'
 BUY_PHASE = 'BUY'
 

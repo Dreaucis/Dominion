@@ -2,9 +2,11 @@ from typing import List, Type
 from collections import Counter
 import random
 
+from bots import RandomBot, ExpensiveBot, BigMoneyBot
 from abstract_cards import Card
+from bot import bot_state
 from cards import Estate, Copper, Province
-from constants import ACTION_PHASE, BUY_PHASE
+from constants import ACTION_PHASE, BUY_PHASE, TREASURE_PHASE
 from player import Player
 from recommended_kingdoms import FIRST_GAME, initialize_kingdom
 
@@ -24,22 +26,21 @@ class CardNotInSupply(Exception):
 
 
 class State:
-    phase = ...
-    players: List[Player] = ...
-    current_player: Player = ...
-    supply: List[Card] = ...
-
-    def __init__(self, num_players: int, supply: List[Card], seed=None):
+    def __init__(self, players: List[Player], supply: List[Card], max_turn_number=25, seed=None):
         if seed:
             random.seed(seed)
-        self.players = [Player(i) for i in range(1, num_players + 1)]
+        self.current_player = None
+        self.phase = None
+        self.players = players
         self.supply = supply
         starting_card = 3 * [self.get_card(Estate)] + 7 * [self.get_card(Copper)]
         for player in self.players:
             player.draw_pile = random.sample(starting_card, len(starting_card))
             player.draw(5)
-
         self.trash = Counter()
+
+        self.turn_number = 0
+        self.max_turn_number = max_turn_number
 
     def add_to_trash(self, card: Card):
         self.trash[card] += 1
@@ -70,17 +71,18 @@ class State:
     def has_game_ended(self):
         empty_supply_piles = [card for card in self.supply if card.is_supply_empty()]
         max_empty = 3 if len(self.players) <= 3 else 4
-        return any(isinstance(card, Province) for card in empty_supply_piles) or len(empty_supply_piles) >= max_empty
+        return any(isinstance(card, Province) for card in empty_supply_piles) or len(
+            empty_supply_piles) >= max_empty or self.turn_number > self.max_turn_number
 
 
 # TODO: in Game loop , resolve effects at start of and end of buy / action
-
 def main():
-    num_players = 2
+    players = [RandomBot('bot1'), ExpensiveBot('bot2')]
+    num_players = len(players)
     supply = initialize_kingdom(FIRST_GAME, num_players)
-    state = State(num_players, supply, 42)
-    for turn_number in range(1, MAXIMUM_NUMBER_OF_ROUNDS + 1):
-        print(f'TURN {turn_number}')  # TODO: Use textwrap for nice printouts
+    state = State(players, supply, 42)
+    while not state.has_game_ended():
+        print(f'TURN {state.turn_number}')  # TODO: Use textwrap for nice printouts
         for player in state.players:
             print(f"PLAYER {player.name}'S TURN")
             print(player.hand)
@@ -90,8 +92,9 @@ def main():
             state.phase = ACTION_PHASE
             print(f"PLAYER {player.name}'S ACTION PHASE")
             print(f"PLAY ACTIONS")
+            print(bot_state(player, state))
             while player.has_playable_cards_in_hand(state) and player.actions > 0:
-                selected_card = player.prompt_select_card(list(player.hand))
+                selected_card = player.prompt_select_card(player.playable_cards(state), state)
                 if not selected_card:
                     break
                 player.play(selected_card, state)
@@ -99,11 +102,14 @@ def main():
                 print(player.play_area)
 
             # Play treasures
-            print(f"PLAYER {player.name}'S BUY PHASE")
+            print(f"PLAYER {player.name}'S TREASURE PHASE")
             print(f"PLAY TREASURES")
-            state.phase = BUY_PHASE
+            state.phase = TREASURE_PHASE
+            print(player.buys)
+            print(player.has_playable_cards_in_hand(state))
+            print('HANd ' + str(list(player.hand)))
             while player.has_playable_cards_in_hand(state) and player.buys > 0:
-                selected_card = player.prompt_select_card(list(player.hand))
+                selected_card = player.prompt_select_card(player.playable_cards(state), state)
                 # If no card is selected, end treasure playing
                 if not selected_card:
                     break
@@ -112,26 +118,31 @@ def main():
                 print(player.play_area)
 
             # Buy cards
+            print(f"PLAYER {player.name}'S BUY PHASE")
             print(f"BUY CARDS")
+            state.phase = BUY_PHASE
             while player.buys > 0:
-                selected_card = player.prompt_select_card(state.affordable_cards(player.money))
+                selected_card = player.prompt_select_card(state.affordable_cards(player.money), state)
                 if not selected_card:
                     break
                 player.buy(selected_card, State)
                 print(selected_card)
 
             # Cleanup
-            if state.has_game_ended():
-                break
             player.reset_turn_attributes()
-            player.discard_hand()
+            player.cleanup()
             print(player.hand)
             player.draw(5)
 
+        state.turn_number += 1
+
     # Print final results
     for player in state.players:
+        print(f'TURN NUMBER: {state.turn_number}')
         print(f'Player: {player.name}, VP: {player.victory_points}')
+        print(player.deck)
 
 
 if __name__ == '__main__':
-    main()
+    for i in range(100):
+        main()

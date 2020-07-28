@@ -2,7 +2,7 @@ from abstract_cards import Action, Victory, Treasure, Attack, Reaction, Card
 from typing import List
 from effects import Effect
 from player import Player
-from constants import TREASURE, CURSE
+from constants import TREASURE, CURSE, BUY_PHASE
 
 
 # Victory cards
@@ -73,67 +73,20 @@ class Gold(Treasure):
 
 
 # Action cards
-class Smithy(Action):
-    price = 4
-
-    def resolve(self, state: 'State'):
-        state.current_player.draw(3)
-
-
-class Village(Action):
-    price = 3
-
-    def resolve(self, state: 'State'):
-        state.current_player.draw(1)
-        state.current_player.actions += 2
-
-
-class Militia(Action, Attack):
-    price = 4
-
-    # TODO: male the attack a method that targets one player at a time? How to check for reaction?
-    def resolve(self, state: 'State'):
-        state.current_player.money += 2
-
-    def attack(self, attacked_players: List[Player]):
-        for player in attacked_players:
-            # If other players have more than 3 cards in hand force them to discard
-            if len(player.hand) > 3:
-                player.prompt_discard(len(player.hand) - 3)
-
-
-class Workshop(Action):
-    price = 3
-
-    def resolve(self, state: 'State'):
-        state.current_player.prompt_gain(4, state.supply)
-
-
 class Cellar(Action):
     price = 2
 
     def resolve(self, state: 'State'):
-        num_cards = int(input('How many cards do you wish to discard?'))
-        num_cards_in_hand = sum(state.current_player.hand.values()) - 1  # Number of cards before discard
-        state.current_player.prompt_discard(num_cards)
-        num_discarded = num_cards_in_hand - sum(state.current_player.hand.values()) - 1
-        state.current_player.draw(num_discarded)
-
-
-class Merchant(Action):
-    price = 3
-
-    def resolve(self, state: 'State'):
-        state.current_player.draw(1)
-        state.current_player.actions += 1
-        state.current_player.delayed_card_effects.append(Effect(BUY_PHASE, self.effect))
-
-    @staticmethod
-    def effect(state: 'State'):
+        print('DISCARD CARDS')
         player = state.current_player
-        # if there are any silver in the play area, add one to the players money count
-        if any(isinstance(card, Silver) for card in player.play_area):
-            player.money += 1
+        num_discarded = 0
+        while player.hand:
+            card = player.prompt_select_card(list(player.hand), state)
+            if not card:
+                break
+            player.add_to_discard(player.remove_from_hand(card))
+            num_discarded += 1
+        state.current_player.draw(num_discarded)
 
 
 class Laboratory(Action):
@@ -154,6 +107,36 @@ class Market(Action):
         state.current_player.money += 1
 
 
+class Militia(Action, Attack):
+    price = 4
+
+    # TODO: male the attack a method that targets one player at a time? How to check for reaction?
+    def resolve(self, state: 'State'):
+        state.current_player.money += 2
+
+    def attack(self, attacked_players: List[Player], state: 'State'):
+        for player in attacked_players:
+            # If other players have more than 3 cards in hand force them to discard
+            if len(player.hand) > 3:
+                player.prompt_discard(len(player.hand) - 3, state)
+
+
+class Merchant(Action):
+    price = 3
+
+    def resolve(self, state: 'State'):
+        state.current_player.draw(1)
+        state.current_player.actions += 1
+        state.current_player.delayed_card_effects.append(Effect(BUY_PHASE, self.effect))
+
+    @staticmethod
+    def effect(state: 'State'):
+        player = state.current_player
+        # if there are any silver in the play area, add one to the players money count
+        if any(isinstance(card, Silver) for card in player.play_area):
+            player.money += 1
+
+
 class Mine(Action):
     price = 5
 
@@ -163,7 +146,7 @@ class Mine(Action):
         trashable_cards = [card for card in player.hand if card.tag == TREASURE]
         if trashable_cards:
             # Prompt for card to be gained
-            trashed_card = player.prompt_select_card(trashable_cards)
+            trashed_card = player.prompt_select_card(trashable_cards, state)
 
             # Move card from hand to trash
             state.add_to_trash(player.remove_from_hand(trashed_card))
@@ -176,7 +159,7 @@ class Mine(Action):
 
             # If there are any possible gainable cards, prompt player to select
             if gainable_cards:
-                gained_card = player.prompt_select_card(gainable_cards)
+                gained_card = player.prompt_select_card(gainable_cards, state)
 
                 # Move card from supply to player hand
                 player.add_to_hand(state.remove_from_supply(gained_card))
@@ -202,7 +185,7 @@ class Remodel(Action):
         trashable_cards = list(player.hand)
         if trashable_cards:
             # Prompt for card to be gained
-            trashed_card = player.prompt_select_card(trashable_cards)
+            trashed_card = player.prompt_select_card(trashable_cards, state)
 
             # Move card from hand to trash
             state.add_to_trash(player.remove_from_hand(trashed_card))
@@ -214,7 +197,31 @@ class Remodel(Action):
 
             # If there are any possible gainable cards, prompt player to select
             if gainable_cards:
-                gained_card = player.prompt_select_card(gainable_cards)
+                gained_card = player.prompt_select_card(gainable_cards, state)
 
                 # Move card from supply to player hand
                 player.add_to_hand(state.remove_from_supply(gained_card))
+
+
+class Smithy(Action):
+    price = 4
+
+    def resolve(self, state: 'State'):
+        state.current_player.draw(3)
+
+
+class Village(Action):
+    price = 3
+
+    def resolve(self, state: 'State'):
+        state.current_player.draw(1)
+        state.current_player.actions += 2
+
+
+class Workshop(Action):
+    price = 3
+
+    def resolve(self, state: 'State'):
+        player = state.current_player
+        card = player.prompt_select_card(state.affordable_cards(4), state)
+        player.gain(card, state)
